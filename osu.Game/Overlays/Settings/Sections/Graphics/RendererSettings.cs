@@ -4,15 +4,18 @@
 using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Allocation;
+using osu.Framework.Bindables;
 using osu.Framework.Configuration;
 using osu.Framework.Extensions;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Containers;
 using osu.Framework.Localisation;
 using osu.Framework.Platform;
 using osu.Game.Configuration;
 using osu.Game.Graphics.UserInterfaceV2;
 using osu.Game.Localisation;
 using osu.Game.Overlays.Dialog;
+using osuTK;
 
 namespace osu.Game.Overlays.Settings.Sections.Graphics
 {
@@ -21,6 +24,15 @@ namespace osu.Game.Overlays.Settings.Sections.Graphics
         protected override LocalisableString Header => GraphicsSettingsStrings.RendererHeader;
 
         private bool automaticRendererInUse;
+
+        private FillFlowContainer otherThreadsContainer = null!;
+        private FillFlowContainer customLimiterContainer = null!;
+        private SettingsItemV2 syncCheckboxItem = null!;
+
+        private readonly Bindable<SettingsNote.Data?> customLimiterNote = new Bindable<SettingsNote.Data?>();
+
+        private Bindable<FrameSync> frameSync = null!;
+        private Bindable<ExecutionMode> executionMode = null!;
 
         [BackgroundDependencyLoader]
         private void load(FrameworkConfigManager config, OsuConfigManager osuConfig, IDialogOverlay? dialogOverlay, OsuGame? game, GameHost host)
@@ -37,6 +49,9 @@ namespace osu.Game.Overlays.Settings.Sections.Graphics
             if (renderer.Value != RendererType.Vulkan)
                 availableRenderers = availableRenderers.Where(t => t != RendererType.Vulkan);
 
+            frameSync = config.GetBindable<FrameSync>(FrameworkSetting.FrameSync);
+            executionMode = config.GetBindable<ExecutionMode>(FrameworkSetting.ExecutionMode);
+
             Children = new Drawable[]
             {
                 new SettingsItemV2(new RendererDropdown
@@ -52,15 +67,69 @@ namespace osu.Game.Overlays.Settings.Sections.Graphics
                 new SettingsItemV2(new FormEnumDropdown<FrameSync>
                 {
                     Caption = GraphicsSettingsStrings.FrameLimiter,
-                    Current = config.GetBindable<FrameSync>(FrameworkSetting.FrameSync),
+                    Current = frameSync,
                 })
                 {
                     Keywords = new[] { @"fps", @"framerate" },
                 },
+                customLimiterContainer = new FillFlowContainer
+                {
+                    RelativeSizeAxes = Axes.X,
+                    AutoSizeAxes = Axes.Y,
+                    Direction = FillDirection.Vertical,
+                    Spacing = new Vector2(0, 5),
+                    LayoutDuration = 200,
+                    LayoutEasing = Easing.OutQuint,
+                    Children = new Drawable[]
+                    {
+                        new SettingsNote
+                        {
+                            RelativeSizeAxes = Axes.X,
+                            Current = { Value = new SettingsNote.Data(GraphicsSettingsStrings.CustomLimiterUseAtOwnRisk, SettingsNote.Type.Critical) },
+                        },
+                        syncCheckboxItem = new SettingsItemV2(new FormCheckBox
+                        {
+                            Caption = GraphicsSettingsStrings.SyncAllThreads,
+                            HintText = GraphicsSettingsStrings.SyncAllThreadsHint,
+                            Current = host.SyncThreadLimits,
+                        })
+                        {
+                            Keywords = new[] { @"sync", @"threads", @"limit", @"all" },
+                            Note = { BindTarget = customLimiterNote },
+                        },
+                        new SettingsItemV2(createLimiterSlider(GraphicsSettingsStrings.InputThread, GraphicsSettingsStrings.InputThreadHint, host.CustomInputThreadLimit))
+                        {
+                            Keywords = new[] { @"input", @"thread", @"fps", @"limit", @"custom" },
+                        },
+                        otherThreadsContainer = new FillFlowContainer
+                        {
+                            RelativeSizeAxes = Axes.X,
+                            AutoSizeAxes = Axes.Y,
+                            Direction = FillDirection.Vertical,
+                            Spacing = new Vector2(0, 5),
+                            Masking = true,
+                            Children = new Drawable[]
+                            {
+                                new SettingsItemV2(createLimiterSlider(GraphicsSettingsStrings.AudioThread, GraphicsSettingsStrings.AudioThreadHint, host.CustomAudioThreadLimit))
+                                {
+                                    Keywords = new[] { @"audio", @"thread", @"fps", @"limit", @"custom" },
+                                },
+                                new SettingsItemV2(createLimiterSlider(GraphicsSettingsStrings.UpdateThread, GraphicsSettingsStrings.UpdateThreadHint, host.CustomUpdateThreadLimit))
+                                {
+                                    Keywords = new[] { @"update", @"thread", @"fps", @"limit", @"custom" },
+                                },
+                                new SettingsItemV2(createLimiterSlider(GraphicsSettingsStrings.DrawThread, GraphicsSettingsStrings.DrawThreadHint, host.CustomDrawThreadLimit))
+                                {
+                                    Keywords = new[] { @"draw", @"thread", @"fps", @"limit", @"custom" },
+                                },
+                            }
+                        },
+                    }
+                },
                 new SettingsItemV2(new FormEnumDropdown<ExecutionMode>
                 {
                     Caption = GraphicsSettingsStrings.ThreadingMode,
-                    Current = config.GetBindable<ExecutionMode>(FrameworkSetting.ExecutionMode)
+                    Current = executionMode,
                 }),
                 new SettingsItemV2(new FormCheckBox
                 {
@@ -72,27 +141,63 @@ namespace osu.Game.Overlays.Settings.Sections.Graphics
                 },
             };
 
-            renderer.BindValueChanged(r =>
+            frameSync.BindValueChanged(_ => updateCustomLimiterVisibility());
+            executionMode.BindValueChanged(_ => updateCustomLimiterVisibility());
+            host.SyncThreadLimits.BindValueChanged(_ => updateCustomLimiterVisibility());
+            updateCustomLimiterVisibility();
+        }
+
+        private void updateCustomLimiterVisibility()
+        {
+            bool isCustom = frameSync.Value is FrameSync.Custom;
+            bool singleThreaded = executionMode.Value is ExecutionMode.SingleThread;
+            bool syncAll = Host.SyncThreadLimits.Value;
+
+            customLimiterContainer.Alpha = isCustom ? 1 : 0;
+
+            if (isCustom)
+                customLimiterContainer.AutoSizeAxes |= Axes.Y;
+            else
             {
-                if (r.NewValue == host.ResolvedRenderer)
-                    return;
+                customLimiterContainer.AutoSizeAxes &= ~Axes.Y;
+                customLimiterContainer.Height = 0;
+            }
 
-                // Need to check startup renderer for the "automatic" case, as ResolvedRenderer above will track the final resolved renderer instead.
-                if (r.NewValue == RendererType.Automatic && automaticRendererInUse)
-                    return;
+            if (syncAll || singleThreaded)
+            {
+                otherThreadsContainer.AutoSizeAxes &= ~Axes.Y;
+                otherThreadsContainer.Height = 0;
+            }
+            else
+                otherThreadsContainer.AutoSizeAxes |= Axes.Y;
 
-                if (game?.RestartAppWhenExited() == true)
-                {
-                    game.AttemptExit();
-                }
-                else
-                {
-                    dialogOverlay?.Push(new ConfirmDialog(GraphicsSettingsStrings.ChangeRendererConfirmation, () => game?.AttemptExit(), () =>
-                    {
-                        renderer.Value = automaticRendererInUse ? RendererType.Automatic : host.ResolvedRenderer;
-                    }));
-                }
-            });
+            Host.CustomInputThreadLimit.Disabled = !isCustom;
+            Host.CustomAudioThreadLimit.Disabled = !isCustom;
+            Host.CustomUpdateThreadLimit.Disabled = !isCustom;
+            Host.CustomDrawThreadLimit.Disabled = !isCustom;
+
+            if (!isCustom)
+                customLimiterNote.Value = new SettingsNote.Data(GraphicsSettingsStrings.CustomLimiterRequiresCustomMode, SettingsNote.Type.Warning);
+            else if (syncAll)
+                customLimiterNote.Value = new SettingsNote.Data(GraphicsSettingsStrings.ThreadsSyncedWithInput, SettingsNote.Type.Informational);
+            else
+                customLimiterNote.Value = null;
+        }
+
+        [Resolved]
+        private GameHost Host { get; set; } = null!;
+
+        private static FormSliderBar<double> createLimiterSlider(LocalisableString caption, LocalisableString hintText, Bindable<double> bindable)
+        {
+            return new FormSliderBar<double>
+            {
+                Caption = caption,
+                HintText = hintText,
+                KeyboardStep = 50,
+                TooltipFormat = v => v == 0 ? "Unlimited" : $"{v:0} FPS",
+                TransferValueOnCommit = true,
+                Current = { BindTarget = bindable },
+            };
         }
 
         private partial class RendererDropdown : FormEnumDropdown<RendererType>

@@ -164,6 +164,71 @@ namespace osu.Game.Localisation
         /// </summary>
         public static LocalisableString ShrinkGameToSafeArea => new TranslatableString(getKey(@"shrink_game_to_safe_area"), @"Shrink game to avoid cameras and notches");
 
+        /// <summary>
+        /// "Sync all threads"
+        /// </summary>
+        public static LocalisableString SyncAllThreads => new TranslatableString(getKey(@"sync_all_threads"), @"Sync all threads");
+
+        /// <summary>
+        /// "When enabled, changing the input thread limiter will apply the same value to all other thread limiters."
+        /// </summary>
+        public static LocalisableString SyncAllThreadsHint => new TranslatableString(getKey(@"sync_all_threads_hint"), @"When enabled, changing the input thread limiter will apply the same value to all other thread limiters.");
+
+        /// <summary>
+        /// "Input thread"
+        /// </summary>
+        public static LocalisableString InputThread => new TranslatableString(getKey(@"input_thread"), @"Input thread");
+
+        /// <summary>
+        /// "Set a custom FPS limit for the input thread. 0 is treated as unlimited."
+        /// </summary>
+        public static LocalisableString InputThreadHint => new TranslatableString(getKey(@"input_thread_hint"), @"Set a custom FPS limit for the input thread. 0 is treated as unlimited.");
+
+        /// <summary>
+        /// "Audio thread"
+        /// </summary>
+        public static LocalisableString AudioThread => new TranslatableString(getKey(@"audio_thread"), @"Audio thread");
+
+        /// <summary>
+        /// "Set a custom FPS limit for the audio thread. 0 is treated as unlimited."
+        /// </summary>
+        public static LocalisableString AudioThreadHint => new TranslatableString(getKey(@"audio_thread_hint"), @"Set a custom FPS limit for the audio thread. 0 is treated as unlimited.");
+
+        /// <summary>
+        /// "Update thread"
+        /// </summary>
+        public static LocalisableString UpdateThread => new TranslatableString(getKey(@"update_thread"), @"Update thread");
+
+        /// <summary>
+        /// "Set a custom FPS limit for the update thread. 0 is treated as unlimited."
+        /// </summary>
+        public static LocalisableString UpdateThreadHint => new TranslatableString(getKey(@"update_thread_hint"), @"Set a custom FPS limit for the update thread. 0 is treated as unlimited.");
+
+        /// <summary>
+        /// "Draw thread"
+        /// </summary>
+        public static LocalisableString DrawThread => new TranslatableString(getKey(@"draw_thread"), @"Draw thread");
+
+        /// <summary>
+        /// "Set a custom FPS limit for the draw thread. 0 is treated as unlimited."
+        /// </summary>
+        public static LocalisableString DrawThreadHint => new TranslatableString(getKey(@"draw_thread_hint"), @"Set a custom FPS limit for the draw thread. 0 is treated as unlimited.");
+
+        /// <summary>
+        /// "Use at your own risk. All issues are considered invalid until this option is disabled and the issue is reproduced without it."
+        /// </summary>
+        public static LocalisableString CustomLimiterUseAtOwnRisk => new TranslatableString(getKey(@"custom_limiter_use_at_own_risk"), @"Use at your own risk. All issues are considered invalid until this option is disabled and the issue is reproduced without it.");
+
+        /// <summary>
+        /// "Custom limiter is only active when Frame Sync is set to Custom."
+        /// </summary>
+        public static LocalisableString CustomLimiterRequiresCustomMode => new TranslatableString(getKey(@"custom_limiter_requires_custom_mode"), @"Custom limiter is only active when Frame Sync is set to Custom.");
+
+        /// <summary>
+        /// "Other thread limiters will be synced with the Input Thread limiter."
+        /// </summary>
+        public static LocalisableString ThreadsSyncedWithInput => new TranslatableString(getKey(@"threads_synced_with_input"), @"Other thread limiters will be synced with the Input Thread limiter.");
+
         private static string getKey(string key) => $@"{prefix}:{key}";
     }
 }
