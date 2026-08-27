@@ -110,14 +110,6 @@ namespace osu.Game.Rulesets.Osu.Skinning
         /// <param name="vertices">The vertices</param>
         protected void SetVertices(IReadOnlyList<Vector2> vertices) => path.Vertices = vertices;
 
-        /// <summary>
-        /// Replace the internal path drawable. Used by derived classes to swap in custom path types.
-        /// </summary>
-        protected void SetPath(DrawableSliderPath newPath)
-        {
-            path = newPath;
-        }
-
         protected virtual DrawableSliderPath CreateSliderPath() => new DefaultDrawableSliderPath();
     }
 }

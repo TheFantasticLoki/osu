@@ -84,7 +84,7 @@ namespace osu.Game.Overlays.SkinEditor
         private Container? content;
 
         private EditorSidebar componentsSidebar = null!;
-        private EditorSidebar settingsSidebar = null!;
+        private SkinEditorSettingsSidebar settingsSidebar = null!;
 
         private SkinEditorChangeHandler? changeHandler;
 
@@ -228,7 +228,7 @@ namespace osu.Game.Overlays.SkinEditor
                                                 Depth = float.MaxValue,
                                                 RelativeSizeAxes = Axes.Both,
                                             },
-                                            settingsSidebar = new EditorSidebar(),
+                                            settingsSidebar = new SkinEditorSettingsSidebar(),
                                         }
                                     }
                                 }
@@ -538,16 +538,20 @@ namespace osu.Game.Overlays.SkinEditor
 
         private void populateSettings()
         {
-            settingsSidebar.Clear();
+            settingsSidebar.ClearAll();
 
-            settingsSidebar.Add(new SkinSliderStyleSettings(currentSkin.Value, () =>
+            settingsSidebar.SetSkinContent(new Drawable[]
             {
-                hasBegunMutating = true;
-                Save(false);
-            }));
+                new SkinSliderStyleSettings(currentSkin.Value, () =>
+                {
+                    hasBegunMutating = true;
+                }),
+            });
 
-            foreach (var component in SelectedComponents.OfType<Drawable>())
-                settingsSidebar.Add(new SkinSettingsToolbox(component));
+            settingsSidebar.SetComponentContent(
+                SelectedComponents.OfType<Drawable>()
+                    .Select(c => new SkinSettingsToolbox(c))
+                    .ToArray<Drawable>());
         }
 
         private IEnumerable<SkinnableContainer> availableTargets => targetScreen.ChildrenOfType<SkinnableContainer>();

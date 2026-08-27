@@ -164,17 +164,16 @@ namespace osu.Game.Skinning
                 textWriter.WriteLine(FormattableString.Invariant($"{key}: {value}"));
         }
 
-        private void writeGenericValue(TextWriter textWriter, Dictionary<string, string> dictionary, string key, string? defaultValue = null)
+        private void writeGenericValue(TextWriter textWriter, IDictionary<string, string> dictionary, string key, string? defaultValue = null)
         {
-            string? value = dictionary.GetValueOrDefault(key);
-            writeValue(textWriter, key, value, defaultValue);
+            writeValue(textWriter, key, dictionary.TryGetValue(key, out string? value) ? value : null, defaultValue);
         }
 
-        private void writeGenericValue(TextWriter textWriter, Dictionary<string, string> dictionary, string[] keys, string? defaultValue = null)
+        private void writeGenericValue(TextWriter textWriter, IDictionary<string, string> dictionary, string[] keys, string? defaultValue = null)
         {
             string? value = null;
             foreach (string key in keys)
-                value ??= dictionary.GetValueOrDefault(key);
+                value ??= dictionary.TryGetValue(key, out string? keyValue) ? keyValue : null;
             writeValue(textWriter, keys.First(), value, defaultValue);
         }
 

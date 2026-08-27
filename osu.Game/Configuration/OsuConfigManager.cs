@@ -243,15 +243,6 @@ namespace osu.Game.Configuration
 
             SetDefault(OsuSetting.DashboardSortMode, UserSortCriteria.LastVisit);
             SetDefault(OsuSetting.DashboardDisplayStyle, OverlayPanelDisplayStyle.Card);
-
-            SetDefault(OsuSetting.CustomSliderStyles, false);
-            SetDefault(OsuSetting.CustomSliderUseComboColour, false);
-            SetDefault(OsuSetting.CustomSliderBodyStyle, SliderBodyStyle.Default);
-            SetDefault(OsuSetting.CustomSliderBorderStyle, SliderBorderStyle.Skin);
-            SetDefault(OsuSetting.CustomSliderBorderColour, Colour4.White);
-            SetDefault(OsuSetting.CustomSliderBorderLightness, 0f, -1f, 1f, 0.01f);
-            SetDefault(OsuSetting.CustomSliderBodyOpacity, 1f, 0.1f, 1f, 0.01f);
-            SetDefault(OsuSetting.CustomSliderGlowWidth, 0.5f, 0f, 1f, 0.01f);
         }
 
         protected override bool CheckLookupContainsPrivateInformation(OsuSetting lookup)
@@ -488,14 +479,5 @@ namespace osu.Game.Configuration
 
         DashboardSortMode,
         DashboardDisplayStyle,
-
-        CustomSliderStyles,
-        CustomSliderUseComboColour,
-        CustomSliderBodyStyle,
-        CustomSliderBorderStyle,
-        CustomSliderBorderColour,
-        CustomSliderBorderLightness,
-        CustomSliderBodyOpacity,
-        CustomSliderGlowWidth,
     }
 }

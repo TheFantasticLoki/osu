@@ -63,6 +63,25 @@ namespace osu.Game.Skinning
 
         public string Name { get; }
 
+        /// <summary>
+        /// Look up a <see cref="SliderStyleSetting"/> from this skin's configuration dictionary.
+        /// Returns <c>null</c> if the setting is not present or cannot be parsed.
+        /// Subclasses which implement <see cref="GetConfig{TLookup,TValue}"/> themselves (and not via
+        /// <see cref="LegacySkin"/>) should call this from their lookup implementation so that
+        /// slider style settings are supported.
+        /// </summary>
+        protected IBindable<TValue>? GetSliderStyleSetting<TValue>(SliderStyleSetting setting)
+            where TValue : notnull
+        {
+            if (!Configuration.ConfigDictionary.TryGetValue(setting.ToString(), out string? value))
+                return null;
+
+            if (!SliderStyleSettingParser.TryParse(value, out TValue parsed))
+                return null;
+
+            return SkinUtils.As<TValue>(new Bindable<TValue>(parsed));
+        }
+
         protected IResourceStore<byte[]>? FallbackStore { get; }
 
         /// <summary>

@@ -33,13 +33,13 @@ namespace osu.Game.Overlays.SkinEditor
             MaxValue = 1,
             Precision = 0.01f,
         };
-        private readonly BindableFloat bodyOpacity = new BindableFloat
+        private readonly BindableFloat bodyOpacity = new BindableFloat(1f)
         {
             MinValue = 0.1f,
             MaxValue = 1,
             Precision = 0.01f,
         };
-        private readonly BindableFloat glowWidth = new BindableFloat
+        private readonly BindableFloat glowWidth = new BindableFloat(0.5f)
         {
             MinValue = 0,
             MaxValue = 1,
@@ -53,6 +53,8 @@ namespace osu.Game.Overlays.SkinEditor
         private ConditionalContainer borderStyleItem = null!;
         private ConditionalContainer borderColourItem = null!;
         private ConditionalContainer borderLightnessItem = null!;
+        private OsuSpriteText bodyHeader = null!;
+        private OsuSpriteText borderHeader = null!;
         private FillFlowContainer settingsContent = null!;
 
         public SkinSliderStyleSettings(Skin skin, Action changed)
@@ -82,7 +84,7 @@ namespace osu.Game.Overlays.SkinEditor
                     Caption = @"Enable custom slider styles",
                     Current = stylesEnabled,
                 }),
-                new OsuSpriteText
+                bodyHeader = new OsuSpriteText
                 {
                     Text = @"Body",
                     Font = OsuFont.Style.Heading2,
@@ -112,7 +114,7 @@ namespace osu.Game.Overlays.SkinEditor
                     KeyboardStep = 0.05f,
                     TransferValueOnCommit = true,
                 })),
-                new OsuSpriteText
+                borderHeader = new OsuSpriteText
                 {
                     Text = @"Border",
                     Font = OsuFont.Style.Heading2,
@@ -168,6 +170,8 @@ namespace osu.Game.Overlays.SkinEditor
         private void updateVisibility()
         {
             bool enabled = stylesEnabled.Value;
+            bodyHeader.Alpha = enabled ? 1 : 0;
+            borderHeader.Alpha = enabled ? 1 : 0;
             useComboColourItem.Shown = enabled;
             bodyStyleItem.Shown = enabled;
             bodyOpacityItem.Shown = enabled;
@@ -183,22 +187,14 @@ namespace osu.Game.Overlays.SkinEditor
             if (!skin.Configuration.ConfigDictionary.TryGetValue(setting.ToString(), out string? value))
                 return fallback;
 
-            try
-            {
-                var bindable = new Bindable<TValue>();
-                bindable.Parse(value, CultureInfo.InvariantCulture);
-                return bindable.Value;
-            }
-            catch
-            {
-                return fallback;
-            }
+            return SliderStyleSettingParser.TryParse(value, out TValue parsed) ? parsed : fallback;
         }
 
         private void writeValue(SliderStyleSetting setting, string value)
         {
+            // The dictionary is a BindableDictionary, so this change notification propagates
+            // to all gameplay components bound to this skin's configuration.
             skin.Configuration.ConfigDictionary[setting.ToString()] = value;
-            skin.Configuration.NotifyChanged();
             changed();
         }
 

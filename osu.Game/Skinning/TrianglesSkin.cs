@@ -211,6 +211,16 @@ namespace osu.Game.Skinning
         {
             // todo: this code is pulled from LegacySkin and should not exist.
             // will likely change based on how databased storage of skin configuration goes.
+            if (lookup is SliderStyleSetting sliderStyleSetting)
+            {
+                var sliderStyle = GetSliderStyleSetting<TValue>(sliderStyleSetting);
+                if (sliderStyle != null)
+                {
+                    LogLookupDebug(this, lookup, LookupDebugType.Hit);
+                    return sliderStyle;
+                }
+            }
+
             switch (lookup)
             {
                 case GlobalSkinColours global:

@@ -235,6 +235,9 @@ namespace osu.Game.Skinning
                     }
                 }
 
+                // Persist any slider style settings to skin.ini.
+                updateSliderStyleIni(s, skin, s.Realm!);
+
                 string newHash = ComputeHash(s);
 
                 hadChanges = newHash != s.Hash;
@@ -243,6 +246,88 @@ namespace osu.Game.Skinning
             });
 
             return hadChanges;
+        }
+
+        /// <summary>
+        /// Persist any slider style settings to the skin's `skin.ini` file.
+        /// <para>
+        /// Only keys managed by <see cref="SliderStyleSetting"/> are touched; all other contents
+        /// of the file (including keys unknown to lazer) are preserved as-is. A `skin.ini` is only
+        /// created if the skin does not yet have one and slider styles have been configured.
+        /// </para>
+        /// </summary>
+        private void updateSliderStyleIni(SkinInfo s, Skin skin, Realm realm)
+        {
+            SliderStyleSetting[] settings = Enum.GetValues<SliderStyleSetting>();
+
+            var styleEntries = new List<string>();
+
+            foreach (var setting in settings)
+            {
+                if (skin.Configuration.ConfigDictionary.TryGetValue(setting.ToString(), out string? value))
+                    styleEntries.Add($@"{setting}: {value}");
+            }
+
+            // Don't create or modify skin.ini at all if no slider styles have been configured.
+            if (styleEntries.Count == 0)
+                return;
+
+            var existingFile = s.GetFile(@"skin.ini");
+
+            var lines = new List<string>();
+
+            if (existingFile != null)
+            {
+                using (var stream = Files.Storage.GetStream(existingFile.File.GetStoragePath()))
+                using (var reader = new StreamReader(stream))
+                {
+                    string? line;
+                    while ((line = reader.ReadLine()) != null)
+                        lines.Add(line);
+                }
+
+                // Strip any previously-written slider style lines, wherever they may be.
+                lines.RemoveAll(line => settings.Any(setting =>
+                    line.TrimStart().StartsWith($@"{setting}:", StringComparison.OrdinalIgnoreCase)));
+
+                // If no [General] section exists, add one so the keys have a home.
+                if (!lines.Any(line => line.Trim().Equals(@"[General]", StringComparison.OrdinalIgnoreCase)))
+                {
+                    lines.Insert(0, @"[General]");
+                    lines.Insert(1, string.Empty);
+                }
+
+                // Insert the keys directly after the [General] header.
+                int insertIndex = lines.FindIndex(line => line.Trim().Equals(@"[General]", StringComparison.OrdinalIgnoreCase)) + 1;
+                lines.InsertRange(insertIndex, styleEntries);
+            }
+            else
+            {
+                // This skin has no skin.ini (e.g. a default skin). Create a minimal one containing
+                // the metadata and the slider style keys only.
+                lines.Add(@"[General]");
+                lines.Add($@"Name: {skin.Configuration.SkinInfo.Name}");
+                lines.Add($@"Author: {skin.Configuration.SkinInfo.Creator}");
+                lines.Add(@"Version: latest");
+                lines.Add(string.Empty);
+                lines.AddRange(styleEntries);
+            }
+
+            using (var outStream = new MemoryStream())
+            {
+                using (var writer = new StreamWriter(outStream, Encoding.UTF8, 1024, leaveOpen: true))
+                {
+                    foreach (string line in lines)
+                        writer.WriteLine(line);
+                }
+
+                outStream.Position = 0;
+
+                if (existingFile != null)
+                    modelManager.ReplaceFile(existingFile, outStream, realm);
+                else
+                    modelManager.AddFile(s, outStream, @"skin.ini", realm);
+            }
         }
     }
 }
