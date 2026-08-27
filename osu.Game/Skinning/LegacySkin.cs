@@ -122,6 +122,26 @@ namespace osu.Game.Skinning
 
                         break;
 
+                    case SliderStyleSetting.BorderColour:
+                        if (Configuration.ConfigDictionary.TryGetValue(nameof(SliderStyleSetting.BorderColour), out string? borderColour))
+                        {
+                            string[] components = borderColour.Split(',');
+                            if (components.Length >= 3
+                                && byte.TryParse(components[0], out byte red)
+                                && byte.TryParse(components[1], out byte green)
+                                && byte.TryParse(components[2], out byte blue))
+                            {
+                                Color4 colour = new Color4(red, green, blue, 255);
+
+                                if (typeof(TValue) == typeof(Colour4))
+                                    return SkinUtils.As<TValue>(new Bindable<Colour4>(colour));
+
+                                return SkinUtils.As<TValue>(new Bindable<Color4>(colour));
+                            }
+                        }
+
+                        break;
+
                     case SkinConfiguration.LegacySetting legacy:
                         return legacySettingLookup<TValue>(legacy);
 

@@ -492,6 +492,7 @@ namespace osu.Game.Overlays.SkinEditor
 
                 // Reload sidebar components.
                 selectedTarget.TriggerChange();
+                Scheduler.AddOnce(populateSettings);
             });
         }
 
@@ -538,6 +539,12 @@ namespace osu.Game.Overlays.SkinEditor
         private void populateSettings()
         {
             settingsSidebar.Clear();
+
+            settingsSidebar.Add(new SkinSliderStyleSettings(currentSkin.Value, () =>
+            {
+                hasBegunMutating = true;
+                Save(false);
+            }));
 
             foreach (var component in SelectedComponents.OfType<Drawable>())
                 settingsSidebar.Add(new SkinSettingsToolbox(component));

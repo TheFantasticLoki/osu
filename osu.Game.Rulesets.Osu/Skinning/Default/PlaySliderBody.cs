@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
@@ -50,6 +51,7 @@ namespace osu.Game.Rulesets.Osu.Skinning.Default
         private Color4 rawComboColour = Color4.White;
 
         private ISkinSource skin = null!;
+        private readonly List<SkinConfiguration> subscribedSkinConfigurations = new List<SkinConfiguration>();
 
         [BackgroundDependencyLoader]
         private void load(ISkinSource skin, DrawableHitObject drawableObject)
@@ -57,6 +59,7 @@ namespace osu.Game.Rulesets.Osu.Skinning.Default
             var drawableSlider = (DrawableSlider)drawableObject;
 
             this.skin = skin;
+            subscribeToSkinConfigurations();
 
             ScaleBindable = drawableSlider.ScaleBindable.GetBoundCopy();
             ScaleBindable.BindValueChanged(scale => PathRadius = OsuHitObject.OBJECT_RADIUS * scale.NewValue, true);
@@ -102,9 +105,48 @@ namespace osu.Game.Rulesets.Osu.Skinning.Default
                 glowWidthBindable.BindValueChanged(_ => pushAllStylesToPath(), true);
                 useComboColour.BindValueChanged(_ => pushAllStylesToPath(), true);
             }
+
+            skin.SourceChanged += onSkinSourceChanged;
         }
 
-        private bool stylesEnabled => customSliderStylesEnabled?.Value == true;
+        private void onSkinSourceChanged()
+        {
+            unsubscribeFromSkinConfigurations();
+            subscribeToSkinConfigurations();
+            Scheduler.AddOnce(pushAllStylesToPath);
+        }
+
+        private void subscribeToSkinConfigurations()
+        {
+            foreach (Skin source in skin.AllSources.OfType<Skin>())
+            {
+                source.Configuration.Changed += onSkinConfigurationChanged;
+                subscribedSkinConfigurations.Add(source.Configuration);
+            }
+        }
+
+        private void unsubscribeFromSkinConfigurations()
+        {
+            foreach (SkinConfiguration configuration in subscribedSkinConfigurations)
+                configuration.Changed -= onSkinConfigurationChanged;
+
+            subscribedSkinConfigurations.Clear();
+        }
+
+        private void onSkinConfigurationChanged()
+        {
+            Scheduler.AddOnce(pushAllStylesToPath);
+        }
+
+        protected override void Dispose(bool isDisposing)
+        {
+            skin.SourceChanged -= onSkinSourceChanged;
+            unsubscribeFromSkinConfigurations();
+            base.Dispose(isDisposing);
+        }
+
+        private bool stylesEnabled => customSliderStylesEnabled?.Value == true
+                          || skin?.GetConfig<SliderStyleSetting, bool>(SliderStyleSetting.StylesEnabled)?.Value == true;
 
         /// <summary>
         /// Push all current style settings directly to the <see cref="DefaultDrawableSliderPath"/>.
@@ -115,23 +157,27 @@ namespace osu.Game.Rulesets.Osu.Skinning.Default
             if (Path is not DrawableSliderPath sliderPath)
                 return;
 
+            if (bodyStyleBindable == null)
+                return;
+
             if (stylesEnabled)
             {
                 // Resolve accent colour.
-                if (useComboColour?.Value == true)
+                if (getSkinValue(SliderStyleSetting.UseComboColour, useComboColour.Value))
                     AccentColour = rawComboColour;
                 else
                     AccentColour = GetBodyAccentColour(skin, rawComboColour);
 
                 // Resolve border colour based on border style.
-                switch (borderStyleBindable.Value)
+                SliderBorderStyle borderStyle = getSkinValue(SliderStyleSetting.BorderStyle, borderStyleBindable.Value);
+                switch (borderStyle)
                 {
                     case SliderBorderStyle.ComboColour:
                         BorderColour = rawComboColour;
                         break;
 
                     case SliderBorderStyle.CustomColour:
-                        BorderColour = borderColourBindable.Value;
+                        BorderColour = getSkinValue(SliderStyleSetting.BorderColour, borderColourBindable.Value);
                         break;
 
                     default:
@@ -139,11 +185,11 @@ namespace osu.Game.Rulesets.Osu.Skinning.Default
                         break;
                 }
 
-                sliderPath.BodyStyle = bodyStyleBindable.Value;
-                sliderPath.BorderStyle = borderStyleBindable.Value;
-                sliderPath.BorderLightness = borderLightnessBindable.Value;
-                sliderPath.BodyOpacity = bodyOpacityBindable.Value;
-                sliderPath.GlowWidth = glowWidthBindable.Value;
+                sliderPath.BodyStyle = getSkinValue(SliderStyleSetting.BodyStyle, bodyStyleBindable.Value);
+                sliderPath.BorderStyle = borderStyle;
+                sliderPath.BorderLightness = getSkinValue(SliderStyleSetting.BorderLightness, borderLightnessBindable.Value);
+                sliderPath.BodyOpacity = getSkinValue(SliderStyleSetting.BodyOpacity, bodyOpacityBindable.Value);
+                sliderPath.GlowWidth = getSkinValue(SliderStyleSetting.GlowWidth, glowWidthBindable.Value);
             }
             else
             {
@@ -156,6 +202,13 @@ namespace osu.Game.Rulesets.Osu.Skinning.Default
                 sliderPath.BodyOpacity = 1f;
                 sliderPath.GlowWidth = 0.5f;
             }
+        }
+
+        private TValue getSkinValue<TValue>(SliderStyleSetting setting, TValue fallback)
+            where TValue : notnull
+        {
+            IBindable<TValue>? value = skin.GetConfig<SliderStyleSetting, TValue>(setting);
+            return value == null ? fallback : value.Value;
         }
 
         public override void RecyclePath()

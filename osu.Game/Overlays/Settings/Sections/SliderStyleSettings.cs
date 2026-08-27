@@ -46,12 +46,14 @@ namespace osu.Game.Overlays.Settings.Sections
             {
                 Caption = @"Body opacity",
                 KeyboardStep = 0.05f,
+                TransferValueOnCommit = true,
                 Current = bodyOpacity,
             });
             var glowWidthItem = new SettingsItemV2(new FormSliderBar<float>
             {
                 Caption = @"Glow width",
                 KeyboardStep = 0.05f,
+                TransferValueOnCommit = true,
                 Current = glowWidth,
             });
             var borderStyleItem = new SettingsItemV2(new FormEnumDropdown<SliderBorderStyle>
@@ -68,6 +70,7 @@ namespace osu.Game.Overlays.Settings.Sections
             {
                 Caption = @"Border lightness",
                 KeyboardStep = 0.05f,
+                TransferValueOnCommit = true,
                 Current = borderLightness,
             });
 

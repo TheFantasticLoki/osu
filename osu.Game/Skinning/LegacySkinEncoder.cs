@@ -50,6 +50,14 @@ namespace osu.Game.Skinning
             writeGenericValue(textWriter, skin.Configuration.ConfigDictionary, @"CustomComboBurstSounds");
             writeGenericValue(textWriter, skin.Configuration.ConfigDictionary, @"ComboBurstRandom");
             writeGenericValue(textWriter, skin.Configuration.ConfigDictionary, @"SliderStyle");
+            writeGenericValue(textWriter, skin.Configuration.ConfigDictionary, nameof(SliderStyleSetting.StylesEnabled));
+            writeGenericValue(textWriter, skin.Configuration.ConfigDictionary, nameof(SliderStyleSetting.UseComboColour));
+            writeGenericValue(textWriter, skin.Configuration.ConfigDictionary, nameof(SliderStyleSetting.BodyStyle));
+            writeGenericValue(textWriter, skin.Configuration.ConfigDictionary, nameof(SliderStyleSetting.BorderStyle));
+            writeGenericValue(textWriter, skin.Configuration.ConfigDictionary, nameof(SliderStyleSetting.BorderColour));
+            writeGenericValue(textWriter, skin.Configuration.ConfigDictionary, nameof(SliderStyleSetting.BorderLightness));
+            writeGenericValue(textWriter, skin.Configuration.ConfigDictionary, nameof(SliderStyleSetting.BodyOpacity));
+            writeGenericValue(textWriter, skin.Configuration.ConfigDictionary, nameof(SliderStyleSetting.GlowWidth));
             writeValue(textWriter, @"Version", skin.Configuration.IsLatestVersion ? @"latest" : skin.Configuration.LegacyVersion?.ToString(CultureInfo.InvariantCulture));
 
             textWriter.WriteLine();

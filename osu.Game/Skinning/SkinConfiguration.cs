@@ -1,6 +1,7 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
 using System.Collections.Generic;
 using osu.Game.Beatmaps.Formats;
 using osuTK.Graphics;
@@ -70,5 +71,9 @@ namespace osu.Game.Skinning
         public Dictionary<string, Color4> CustomColours { get; } = new Dictionary<string, Color4>();
 
         public readonly Dictionary<string, string> ConfigDictionary = new Dictionary<string, string>();
+
+        public event Action Changed;
+
+        internal void NotifyChanged() => Changed?.Invoke();
     }
 }
