@@ -26,21 +26,72 @@ namespace osu.Game.Rulesets.Osu.Skinning.Legacy
         {
             protected override Color4 ColourAt(float position)
             {
-                Color4 shadow = new Color4(0, 0, 0, 0.25f);
-                Color4 outerColour = AccentColour.Darken(0.1f);
-                Color4 innerColour = lighten(AccentColour, 0.5f);
-
                 // https://github.com/peppy/osu-stable-reference/blob/3ea48705eb67172c430371dcfc8a16a002ed0d3d/osu!/Graphics/Renderers/MmSliderRendererGL.cs#L59-L70
                 const float shadow_portion = 1 - (OsuLegacySkinTransformer.LEGACY_CIRCLE_RADIUS / OsuHitObject.OBJECT_RADIUS);
                 const float border_portion = 0.1875f;
 
+                // Shadow zone (always present in legacy rendering).
                 if (position <= shadow_portion)
+                {
+                    Color4 shadow = new Color4(0, 0, 0, 0.25f);
                     return LegacyUtils.InterpolateNonLinear(position, Color4.Black.Opacity(0f), shadow, 0, shadow_portion);
+                }
 
+                // Border zone: respect custom border style/lightness.
                 if (position <= border_portion)
-                    return BorderColour;
+                {
+                    Color4 borderColour = BorderColour;
 
-                return LegacyUtils.InterpolateNonLinear(position, outerColour, innerColour, border_portion, 1);
+                    if (BorderStyle != SliderBorderStyle.Skin)
+                    {
+                        float l = BorderLightness;
+                        borderColour = l >= 0 ? borderColour.Lighten(l) : borderColour.Darken(-l);
+                    }
+
+                    return borderColour;
+                }
+
+                // Body zone: apply body style and opacity.
+                float bodyPosition = (position - border_portion) / (1f - border_portion);
+
+                switch (BodyStyle)
+                {
+                    case SliderBodyStyle.GlowingEdge:
+                    {
+                        Color4 edgeColour = AccentColour.Darken(0.1f);
+                        float gw = Math.Clamp(GlowWidth, 0.01f, 1f);
+                        float t = Math.Clamp(bodyPosition / gw, 0f, 1f);
+                        float alpha = (1f - t) * AccentColour.A * BodyOpacity;
+                        return new Color4(edgeColour.R, edgeColour.G, edgeColour.B, alpha);
+                    }
+
+                    case SliderBodyStyle.SolidFill:
+                    {
+                        Color4 centreColour = AccentColour.Lighten(0.5f);
+                        return new Color4(centreColour.R, centreColour.G, centreColour.B, 0.8f * AccentColour.A * BodyOpacity);
+                    }
+
+                    case SliderBodyStyle.InvertedGradient:
+                    {
+                        Color4 edgeColour = AccentColour.Darken(0.1f);
+                        Color4 centreColour = AccentColour.Lighten(0.5f);
+                        float alpha = 0.8f * bodyPosition * AccentColour.A * BodyOpacity;
+                        return new Color4(
+                            edgeColour.R + (centreColour.R - edgeColour.R) * bodyPosition,
+                            edgeColour.G + (centreColour.G - edgeColour.G) * bodyPosition,
+                            edgeColour.B + (centreColour.B - edgeColour.B) * bodyPosition,
+                            alpha);
+                    }
+
+                    default:
+                    {
+                        // Classic legacy gradient, with opacity support.
+                        Color4 outerColour = AccentColour.Darken(0.1f);
+                        Color4 innerColour = lighten(AccentColour, 0.5f);
+                        Color4 result = LegacyUtils.InterpolateNonLinear(position, outerColour, innerColour, border_portion, 1);
+                        return new Color4(result.R, result.G, result.B, result.A * BodyOpacity);
+                    }
+                }
             }
 
             /// <summary>
