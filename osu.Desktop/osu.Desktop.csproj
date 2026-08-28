@@ -15,6 +15,10 @@
   <PropertyGroup>
     <StartupObject>osu.Desktop.Program</StartupObject>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(CustomUserData)' == 'true'">
+    <!-- Defines a build which behaves like Release but uses a separate userdata location (see Program.cs). -->
+    <DefineConstants>$(DefineConstants);CUSTOM_USERDATA</DefineConstants>
+  </PropertyGroup>
   <ItemGroup Label="Project References">
     <ProjectReference Include="..\osu.Game.Tournament\osu.Game.Tournament.csproj" />
     <ProjectReference Include="..\osu.Game\osu.Game.csproj" />

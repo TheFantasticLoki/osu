@@ -77,7 +77,9 @@ namespace osu.Game
     [Cached(typeof(OsuGameBase))]
     public partial class OsuGameBase : Framework.Game, ICanAcceptFiles, IBeatSyncProvider
     {
-#if DEBUG
+#if CUSTOM_USERDATA
+        public const string GAME_NAME = "osu! (custom)";
+#elif DEBUG
         public const string GAME_NAME = "osu! (development)";
 #else
         public const string GAME_NAME = "osu!";

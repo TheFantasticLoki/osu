@@ -4,6 +4,10 @@
     <OutputType>Library</OutputType>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(CustomUserData)' == 'true'">
+    <!-- Defines a build which behaves like Release but uses a separate userdata location (see osu.Desktop/Program.cs). -->
+    <DefineConstants>$(DefineConstants);CUSTOM_USERDATA</DefineConstants>
+  </PropertyGroup>
   <PropertyGroup Label="Nuget">
     <Title>osu!</Title>
     <PackageId>ppy.osu.Game</PackageId>

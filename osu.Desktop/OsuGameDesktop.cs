@@ -120,7 +120,13 @@ namespace osu.Desktop
             if (IsPackageManaged)
                 return new NoActionUpdateManager();
 
+#if CUSTOM_USERDATA
+            // Custom builds must never be updated to an official release, as that would
+            // replace the custom binary (and could take the custom data expectations with it).
+            return new NoActionUpdateManager();
+#else
             return new VelopackUpdateManager();
+#endif
         }
 
         public override bool RestartAppWhenExited()
