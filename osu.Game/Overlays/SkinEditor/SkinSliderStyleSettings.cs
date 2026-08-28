@@ -10,6 +10,7 @@ using osu.Framework.Graphics.Containers;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Graphics.UserInterfaceV2;
+using osu.Game.Localisation;
 using osu.Game.Overlays.Settings;
 using osu.Game.Screens.Edit.Components;
 using osu.Game.Skinning;
@@ -58,7 +59,7 @@ namespace osu.Game.Overlays.SkinEditor
         private FillFlowContainer settingsContent = null!;
 
         public SkinSliderStyleSettings(Skin skin, Action changed)
-            : base(@"Slider Style")
+            : base(SkinEditorSettingsStrings.SliderStyleHeader)
         {
             this.skin = skin;
             this.changed = changed;
@@ -81,58 +82,66 @@ namespace osu.Game.Overlays.SkinEditor
             {
                 new SettingsItemV2(new FormCheckBox
                 {
-                    Caption = @"Enable custom slider styles",
+                    Caption = SkinEditorSettingsStrings.EnableCustomSliderStyles,
+                    HintText = SkinEditorSettingsStrings.EnableCustomSliderStylesTooltip,
                     Current = stylesEnabled,
                 }),
                 bodyHeader = new OsuSpriteText
                 {
-                    Text = @"Body",
+                    Text = SkinEditorSettingsStrings.SliderBodyHeader,
                     Font = OsuFont.Style.Heading2,
                     Padding = SettingsPanel.CONTENT_PADDING,
                 },
                 useComboColourItem = new ConditionalContainer(new SettingsItemV2(new FormCheckBox
                 {
-                    Caption = @"Use combo colour for slider body",
+                    Caption = SkinEditorSettingsStrings.UseComboColourBody,
+                    HintText = SkinEditorSettingsStrings.UseComboColourBodyTooltip,
                     Current = useComboColour,
                 })),
                 bodyStyleItem = new ConditionalContainer(new SettingsItemV2(new FormEnumDropdown<SliderBodyStyle>
                 {
-                    Caption = @"Body style",
+                    Caption = SkinEditorSettingsStrings.SliderBodyStyle,
+                    HintText = SkinEditorSettingsStrings.SliderBodyStyleTooltip,
                     Current = bodyStyle,
                 })),
                 bodyOpacityItem = new ConditionalContainer(new SettingsItemV2(new FormSliderBar<float>
                 {
-                    Caption = @"Body opacity",
+                    Caption = SkinEditorSettingsStrings.SliderBodyOpacity,
+                    HintText = SkinEditorSettingsStrings.SliderBodyOpacityTooltip,
                     Current = bodyOpacity,
                     KeyboardStep = 0.05f,
                     TransferValueOnCommit = true,
                 })),
                 glowWidthItem = new ConditionalContainer(new SettingsItemV2(new FormSliderBar<float>
                 {
-                    Caption = @"Glow width",
+                    Caption = SkinEditorSettingsStrings.SliderGlowWidth,
+                    HintText = SkinEditorSettingsStrings.SliderGlowWidthTooltip,
                     Current = glowWidth,
                     KeyboardStep = 0.05f,
                     TransferValueOnCommit = true,
                 })),
                 borderHeader = new OsuSpriteText
                 {
-                    Text = @"Border",
+                    Text = SkinEditorSettingsStrings.SliderBorderHeader,
                     Font = OsuFont.Style.Heading2,
                     Padding = SettingsPanel.CONTENT_PADDING,
                 },
                 borderStyleItem = new ConditionalContainer(new SettingsItemV2(new FormEnumDropdown<SliderBorderStyle>
                 {
-                    Caption = @"Border style",
+                    Caption = SkinEditorSettingsStrings.SliderBorderStyle,
+                    HintText = SkinEditorSettingsStrings.SliderBorderStyleTooltip,
                     Current = borderStyle,
                 })),
                 borderColourItem = new ConditionalContainer(new SettingsColour
                 {
-                    LabelText = @"Custom border colour",
+                    LabelText = SkinEditorSettingsStrings.SliderBorderColour,
+                    TooltipText = SkinEditorSettingsStrings.SliderBorderColourTooltip,
                     Current = borderColour,
                 }),
                 borderLightnessItem = new ConditionalContainer(new SettingsItemV2(new FormSliderBar<float>
                 {
-                    Caption = @"Border lightness",
+                    Caption = SkinEditorSettingsStrings.SliderBorderLightness,
+                    HintText = SkinEditorSettingsStrings.SliderBorderLightnessTooltip,
                     Current = borderLightness,
                     KeyboardStep = 0.05f,
                     TransferValueOnCommit = true,

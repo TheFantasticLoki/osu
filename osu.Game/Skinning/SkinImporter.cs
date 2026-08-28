@@ -11,12 +11,14 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using osu.Framework.Platform;
 using osu.Game.Beatmaps;
+using osu.Game.Beatmaps.Formats;
 using osu.Game.Database;
 using osu.Game.Extensions;
 using osu.Game.IO;
 using osu.Game.IO.Archives;
 using osu.Game.Overlays.Notifications;
 using Realms;
+using osuTK.Graphics;
 
 namespace osu.Game.Skinning
 {
@@ -238,6 +240,9 @@ namespace osu.Game.Skinning
                 // Persist any slider style settings to skin.ini.
                 updateSliderStyleIni(s, skin, s.Realm!);
 
+                // Persist editor-managed cursor/gameplay config keys and combo / custom colours to skin.ini.
+                updateGameSettingsIni(s, skin, s.Realm!);
+
                 string newHash = ComputeHash(s);
 
                 hadChanges = newHash != s.Hash;
@@ -329,5 +334,145 @@ namespace osu.Game.Skinning
                     modelManager.AddFile(s, outStream, @"skin.ini", realm);
             }
         }
+        /// <summary>
+        /// Persist editor-managed gameplay/cursor config keys (as <c>[General]</c> lines) and combo /
+        /// custom colours (as <c>[Colours]</c> lines) to the skin's <c>skin.ini</c> file.
+        /// <para>
+        /// Only keys managed by the skin editor are touched; all other contents of the file
+        /// (including keys unknown to lazer) are preserved as-is. This never creates a
+        /// <c>skin.ini</c> by itself; if none exists it simply does nothing, leaving creation to
+        /// whatever other edit operation requires it.
+        /// </para>
+        /// </summary>
+        private void updateGameSettingsIni(SkinInfo s, Skin skin, Realm realm)
+        {
+            var generalEntries = new List<string>();
+            var colourEntries = new List<string>();
+
+            foreach (string key in editor_managed_general_keys)
+            {
+                if (skin.Configuration.ConfigDictionary.TryGetValue(key, out string? value))
+                    generalEntries.Add($@"{key}: {value}");
+            }
+
+            // Combo colours (Combo1..N).
+            for (int i = 0; i < skin.Configuration.CustomComboColours.Count; ++i)
+                colourEntries.Add($@"Combo{i + 1}: {colourToString(skin.Configuration.CustomComboColours[i])}");
+
+            // Custom colours.
+            foreach (string key in editor_managed_colour_keys)
+            {
+                if (skin.Configuration.CustomColours.TryGetValue(key, out Color4 colour))
+                    colourEntries.Add($@"{key}: {colourToString(colour)}");
+            }
+
+            if (generalEntries.Count == 0 && colourEntries.Count == 0)
+                return;
+
+            var existingFile = s.GetFile(@"skin.ini");
+
+            if (existingFile == null)
+                return;
+
+            var lines = new List<string>();
+
+            using (var stream = Files.Storage.GetStream(existingFile.File.GetStoragePath()))
+            using (var reader = new StreamReader(stream))
+            {
+                string? line;
+                while ((line = reader.ReadLine()) != null)
+                    lines.Add(line);
+            }
+
+            // Strip any previously-written managed general keys, wherever they may be.
+            foreach (string key in editor_managed_general_keys)
+                lines.RemoveAll(line => line.TrimStart().StartsWith($@"{key}:", StringComparison.OrdinalIgnoreCase));
+
+            // Strip combo + custom colour lines so we can reinsert them in their canonical section.
+            for (int i = 0; i < LegacyDecoder<SkinConfiguration>.MAX_COMBO_COLOUR_COUNT; ++i)
+                lines.RemoveAll(line => line.TrimStart().StartsWith($@"Combo{i + 1}:", StringComparison.OrdinalIgnoreCase));
+
+            foreach (string key in editor_managed_colour_keys)
+                lines.RemoveAll(line => line.TrimStart().StartsWith($@"{key}:", StringComparison.OrdinalIgnoreCase));
+
+            if (generalEntries.Count > 0)
+            {
+                // If no [General] section exists, add one so the keys have a home.
+                if (!lines.Any(line => line.Trim().Equals(@"[General]", StringComparison.OrdinalIgnoreCase)))
+                {
+                    lines.Insert(0, @"[General]");
+                    lines.Insert(1, string.Empty);
+                }
+
+                // Insert the keys directly after the [General] header.
+                int insertIndex = lines.FindIndex(line => line.Trim().Equals(@"[General]", StringComparison.OrdinalIgnoreCase)) + 1;
+                lines.InsertRange(insertIndex, generalEntries);
+            }
+
+            if (colourEntries.Count > 0)
+            {
+                // Colours belong in the [Colours] section.
+                if (!lines.Any(line => line.Trim().Equals(@"[Colours]", StringComparison.OrdinalIgnoreCase)))
+                {
+                    lines.Insert(0, @"[Colours]");
+                    lines.Insert(1, string.Empty);
+                }
+
+                int insertIndex = lines.FindIndex(line => line.Trim().Equals(@"[Colours]", StringComparison.OrdinalIgnoreCase)) + 1;
+                lines.InsertRange(insertIndex, colourEntries);
+            }
+
+            using (var outStream = new MemoryStream())
+            {
+                using (var writer = new StreamWriter(outStream, Encoding.UTF8, 1024, leaveOpen: true))
+                {
+                    foreach (string line in lines)
+                        writer.WriteLine(line);
+                }
+
+                outStream.Position = 0;
+
+                modelManager.ReplaceFile(existingFile, outStream, realm);
+            }
+        }
+        /// <summary>
+        /// Legacy config keys (cursor / gameplay toggles and spinner settings) exposed in the skin
+        /// editor, persisted to the skin's <c>skin.ini</c>.
+        /// </summary>
+        private static readonly string[] editor_managed_general_keys =
+        {
+            @"CursorCentre",
+            @"CursorExpand",
+            @"CursorRotate",
+            @"CursorTrailRotate",
+            @"HitCircleOverlayAboveNumber",
+            @"SpinnerFrequencyModulate",
+            @"SpinnerNoBlink",
+            @"AllowSliderBallTint",
+            @"LayeredHitSounds",
+            @"AnimationFramerate",
+            @"HitCircleOverlap",
+            @"ScoreOverlap",
+            @"ComboOverlap",
+            @"SliderPathRadius",
+        };
+
+        /// <summary>
+        /// Custom colour keys exposed in the skin editor, persisted to the <c>[Colours]</c> section
+        /// of the skin's <c>skin.ini</c>.
+        /// </summary>
+        private static readonly string[] editor_managed_colour_keys =
+        {
+            @"SliderTrackOverride",
+            @"SliderBorder",
+            @"SliderBall",
+            @"SpinnerBackground",
+            @"StarBreakAdditive",
+            @"InputOverlayText",
+            @"MenuGlow",
+        };
+
+        private static string colourToString(Color4 colour)
+            => FormattableString.Invariant($@"{(int)(colour.R * 255)},{(int)(colour.G * 255)},{(int)(colour.B * 255)}");
     }
 }

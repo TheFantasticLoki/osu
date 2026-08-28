@@ -546,6 +546,18 @@ namespace osu.Game.Overlays.SkinEditor
                 {
                     hasBegunMutating = true;
                 }),
+                new SkinColourSettings(currentSkin.Value, () =>
+                {
+                    hasBegunMutating = true;
+                }),
+                new SkinComboColourSettings(currentSkin.Value, () =>
+                {
+                    hasBegunMutating = true;
+                }),
+                new SkinGameplaySettings(currentSkin.Value, () =>
+                {
+                    hasBegunMutating = true;
+                }),
             });
 
             settingsSidebar.SetComponentContent(

@@ -15,6 +15,7 @@ using osu.Game.Graphics.UserInterface;
 using osu.Game.Overlays;
 using osu.Game.Overlays.Settings;
 using osu.Game.Screens.Edit.Components;
+using osuTK;
 
 namespace osu.Game.Overlays.SkinEditor
 {
@@ -32,8 +33,8 @@ namespace osu.Game.Overlays.SkinEditor
 
         private readonly BindableInt selectedTab = new BindableInt(0);
 
-        private Container skinPanel = null!;
-        private Container componentPanel = null!;
+        private Container<Drawable> skinPanel = null!;
+        private Container<Drawable> componentPanel = null!;
 
         public SkinEditorSettingsSidebar()
         {
@@ -46,32 +47,27 @@ namespace osu.Game.Overlays.SkinEditor
                 {
                     RelativeSizeAxes = Axes.Both,
                 },
-                new FillFlowContainer
+                // Scroll region fills the whole sidebar, with its top padded below the tab bar
+                // so the content never extends underneath or beyond it.
+                new OsuScrollContainer
                 {
+                    ScrollbarOverlapsContent = false,
                     RelativeSizeAxes = Axes.Both,
-                    Direction = FillDirection.Vertical,
-                    Children = new Drawable[]
+                    Padding = new MarginPadding { Top = TAB_HEIGHT },
+                    Child = content = new FillFlowContainer<Drawable>
                     {
-                        new TabBar
-                        {
-                            RelativeSizeAxes = Axes.X,
-                            Height = TAB_HEIGHT,
-                            SelectedTab = { BindTarget = selectedTab },
-                        },
-                        new OsuScrollContainer
-                        {
-                            ScrollbarOverlapsContent = false,
-                            RelativeSizeAxes = Axes.Both,
-                            Height = 1f,
-                            Child = content = new FillFlowContainer<Drawable>
-                            {
-                                RelativeSizeAxes = Axes.X,
-                                AutoSizeAxes = Axes.Y,
-                                Padding = new MarginPadding(EditorSidebar.PADDING),
-                                Direction = FillDirection.Vertical,
-                            },
-                        },
+                        RelativeSizeAxes = Axes.X,
+                        AutoSizeAxes = Axes.Y,
+                        Padding = new MarginPadding(EditorSidebar.PADDING),
+                        Direction = FillDirection.Vertical,
                     },
+                },
+                // Pinned to the top and drawn above the scroll region.
+                new TabBar
+                {
+                    RelativeSizeAxes = Axes.X,
+                    Height = TAB_HEIGHT,
+                    SelectedTab = { BindTarget = selectedTab },
                 },
             };
         }
@@ -91,10 +87,12 @@ namespace osu.Game.Overlays.SkinEditor
         public void SetSkinContent(Drawable[] sections)
         {
             content.Clear();
-            skinPanel = new Container
+            skinPanel = new FillFlowContainer<Drawable>
             {
                 RelativeSizeAxes = Axes.X,
                 AutoSizeAxes = Axes.Y,
+                Direction = FillDirection.Vertical,
+                Spacing = new osuTK.Vector2(0, 10),
                 Children = sections,
             };
             content.Add(skinPanel);
@@ -103,10 +101,12 @@ namespace osu.Game.Overlays.SkinEditor
 
         public void SetComponentContent(Drawable[] sections)
         {
-            componentPanel = new Container
+            componentPanel = new FillFlowContainer<Drawable>
             {
                 RelativeSizeAxes = Axes.X,
                 AutoSizeAxes = Axes.Y,
+                Direction = FillDirection.Vertical,
+                Spacing = new osuTK.Vector2(0, 10),
                 Children = sections,
             };
             content.Add(componentPanel);
