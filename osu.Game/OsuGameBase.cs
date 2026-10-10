@@ -5,6 +5,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -149,6 +150,12 @@ namespace osu.Game
         protected virtual Edges SafeAreaOverrideEdges => Edges.None;
 
         protected OsuConfigManager LocalConfig { get; private set; }
+
+        /// <summary>
+        /// Configuration for this fork's custom per-thread frame limiter, stored in a fork-owned file so that it is
+        /// never written to (or corrupted by) files shared with official builds.
+        /// </summary>
+        protected CustomFrameLimiterConfigManager CustomFrameLimiterConfig { get; private set; }
 
         protected SessionStatics SessionStatics { get; private set; }
 
@@ -298,6 +305,7 @@ namespace osu.Game
 
             dependencies.CacheAs(LocalConfig);
             dependencies.CacheAs<IGameplaySettings>(LocalConfig);
+            dependencies.CacheAs(CustomFrameLimiterConfig);
 
             InitialiseFonts();
 
@@ -549,7 +557,129 @@ namespace osu.Game
                 ? new DevelopmentOsuConfigManager(Storage)
                 : new OsuConfigManager(Storage);
 
+            setupCustomFrameLimiter(host);
+
             host.ExceptionThrown += onExceptionThrown;
+        }
+
+        /// <summary>
+        /// The name of the framework's config file. Official builds also read and rewrite this file, so it must only
+        /// ever contain settings official builds understand.
+        /// </summary>
+        private const string framework_ini_filename = @"framework.ini";
+
+        /// <summary>
+        /// Custom limiter keys parsed from <c>framework.ini</c> before the framework could rewrite the file, or
+        /// <c>null</c> if it did not exist at startup. Retained for <see cref="migrateLegacyCustomFrameLimiterSettings"/>.
+        /// </summary>
+        private IReadOnlyDictionary<string, string> legacyFrameworkConfigValues;
+
+        private void snapshotLegacyFrameworkConfig(Storage storage)
+        {
+            string path = storage.GetFullPath(framework_ini_filename);
+
+            if (!File.Exists(path))
+                return;
+
+            var values = new Dictionary<string, string>();
+
+            foreach (string line in File.ReadLines(path))
+            {
+                int splitIndex = line.IndexOf('=');
+
+                if (line.Length == 0 || line[0] == '#' || splitIndex < 0)
+                    continue;
+
+                values[line[..splitIndex].Trim()] = line[(splitIndex + 1)..].Trim();
+            }
+
+            legacyFrameworkConfigValues = values;
+        }
+
+        /// <summary>
+        /// Wires up this fork's custom per-thread frame limiter.
+        /// </summary>
+        /// <remarks>
+        /// The limiter's entire state lives in a fork-owned config file, mirroring how ruleset settings are kept out of
+        /// the main client config so that they can safely be added and removed. This guarantees that official builds
+        /// sharing the same user data location can always load it, and cannot corrupt or erase the limiter's state.
+        /// </remarks>
+        private void setupCustomFrameLimiter(GameHost host)
+        {
+            CustomFrameLimiterConfig = new CustomFrameLimiterConfigManager(Storage);
+
+            migrateLegacyCustomFrameLimiterSettings();
+
+            // BindWith adopts the persisted values into the host's bindables (which drive the actual thread limits)
+            // and keeps both sides in sync from then on.
+            CustomFrameLimiterConfig.BindWith(CustomFrameLimiterSetting.InputThreadLimit, host.CustomInputThreadLimit);
+            CustomFrameLimiterConfig.BindWith(CustomFrameLimiterSetting.AudioThreadLimit, host.CustomAudioThreadLimit);
+            CustomFrameLimiterConfig.BindWith(CustomFrameLimiterSetting.UpdateThreadLimit, host.CustomUpdateThreadLimit);
+            CustomFrameLimiterConfig.BindWith(CustomFrameLimiterSetting.DrawThreadLimit, host.CustomDrawThreadLimit);
+            CustomFrameLimiterConfig.BindWith(CustomFrameLimiterSetting.SyncThreadLimits, host.SyncThreadLimits);
+
+            // Track whether the limiter is in use in the fork-owned file. Nothing about it is ever written to
+            // framework.ini: the framework reports FrameSync values above Unlimited as Unlimited on disk.
+            host.FrameSyncMode.BindValueChanged(mode =>
+                CustomFrameLimiterConfig.SetValue(CustomFrameLimiterSetting.Enabled, mode.NewValue == FrameSync.Custom));
+
+            // If the settings file requested the limiter but the frame sync mode isn't honouring it (framework
+            // configuration falls back to a known value when a mode can't be parsed), re-apply it. The reverse case is
+            // handled by the binding above, so this cannot loop.
+            bool enabled = CustomFrameLimiterConfig.Get<bool>(CustomFrameLimiterSetting.Enabled);
+
+            if (enabled != (host.FrameSyncMode.Value == FrameSync.Custom))
+                host.FrameSyncMode.Value = enabled ? FrameSync.Custom : FrameSync.Unlimited;
+        }
+
+        /// <summary>
+        /// Moves any custom limiter state that earlier versions of this fork stored in framework.ini into the
+        /// fork-owned config file, using the snapshot taken before the framework could rewrite the file.
+        /// </summary>
+        private void migrateLegacyCustomFrameLimiterSettings()
+        {
+            if (legacyFrameworkConfigValues == null)
+                return;
+
+            // Once the fork-owned file exists it is the source of truth.
+            if (Storage.Exists(CustomFrameLimiterConfigManager.FILENAME))
+                return;
+
+            bool settingsFound = false;
+
+            if (legacyFrameworkConfigValues.TryGetValue(nameof(FrameworkSetting.FrameSync), out string frameSync)
+                && frameSync == nameof(FrameSync.Custom))
+            {
+                CustomFrameLimiterConfig.SetValue(CustomFrameLimiterSetting.Enabled, true);
+                settingsFound = true;
+            }
+
+            // Limits were previously stored in framework.ini under these keys.
+            foreach (var (legacyKey, setting) in new[]
+            {
+                ("CustomInputThreadLimit", CustomFrameLimiterSetting.InputThreadLimit),
+                ("CustomAudioThreadLimit", CustomFrameLimiterSetting.AudioThreadLimit),
+                ("CustomUpdateThreadLimit", CustomFrameLimiterSetting.UpdateThreadLimit),
+                ("CustomDrawThreadLimit", CustomFrameLimiterSetting.DrawThreadLimit),
+            })
+            {
+                if (legacyFrameworkConfigValues.TryGetValue(legacyKey, out string value)
+                    && double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out double limit))
+                {
+                    CustomFrameLimiterConfig.SetValue(setting, limit);
+                    settingsFound = true;
+                }
+            }
+
+            if (legacyFrameworkConfigValues.TryGetValue(nameof(CustomFrameLimiterSetting.SyncThreadLimits), out string sync)
+                && bool.TryParse(sync, out bool syncThreadLimits))
+            {
+                CustomFrameLimiterConfig.SetValue(CustomFrameLimiterSetting.SyncThreadLimits, syncThreadLimits);
+                settingsFound = true;
+            }
+
+            if (settingsFound)
+                Logger.Log(@"Migrated custom frame limiter settings from framework.ini to custom-frame-limiter.ini.");
         }
 
         #region Exit handling
@@ -644,7 +774,14 @@ namespace osu.Game
 
         protected virtual Container CreateScalingContainer() => new DrawSizePreservingFillContainer();
 
-        protected override Storage CreateStorage(GameHost host, Storage defaultStorage) => new OsuStorage(host, defaultStorage);
+        protected override Storage CreateStorage(GameHost host, Storage defaultStorage)
+        {
+            // Capture any custom limiter settings that earlier versions of this fork left in framework.ini, before
+            // the framework gets the chance to rewrite the file. See migrateLegacyCustomFrameLimiterSettings().
+            snapshotLegacyFrameworkConfig(defaultStorage);
+
+            return new OsuStorage(host, defaultStorage);
+        }
 
         /// <summary>
         /// Creates an input settings subsection for an <see cref="InputHandler"/>.
